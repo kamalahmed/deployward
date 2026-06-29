@@ -48,4 +48,17 @@ final class HealthCheckerTest extends TestCase
 
         $this->assertFalse((new HealthChecker())->check('https://nara.local/')->isOk());
     }
+
+    public function test_unhealthy_on_wp_error(): void
+    {
+        Functions\when('is_wp_error')->justReturn(true);
+        Functions\when('wp_remote_get')->justReturn(new class {
+            public function get_error_message()
+            {
+                return 'timeout';
+            }
+        });
+
+        $this->assertFalse((new HealthChecker())->check('https://nara.local/')->isOk());
+    }
 }
