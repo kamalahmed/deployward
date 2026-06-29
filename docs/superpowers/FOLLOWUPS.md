@@ -56,3 +56,12 @@ or alongside Plan 2/3.
 - buildToastEl vs inline-error surface: decide one pattern for form-level errors.
 - Extract repeated 'public' literal into a named constant or config value.
 - Container builds its own DeploymentRepository (stateless, fine as-is).
+
+## Plan 2 (triggers) follow-ups
+
+- Add a per-deployment deploy lock/dedupe (transient keyed by deployment id) so concurrent triggers (webhook + cron, or overlapping cron) cannot run two deploys of the same commit. Harmless today (identical code, atomic swap + backup), but worth hardening.
+- SignatureVerifier: add a wrong-algorithm-prefix (sha1=) rejection test.
+- CronPoller: add a private-visibility test asserting the token is passed to resolveSha.
+- DeployScheduler: constructor is untyped ($container) for partial-mock testability; consider a ContainerInterface to restore the type hint.
+- RestRoutesTest: tighten the webhook permission assertion to === '__return_true'; add a test that the webhook-info route is canManage-gated.
+- admin.js webhook panel: associate each row <label> with its <input> (for/id) for screen readers; verify .dw-copy padding vs dw-btn in the browser.
