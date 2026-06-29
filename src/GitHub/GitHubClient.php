@@ -49,6 +49,31 @@ final class GitHubClient implements GitHubClientInterface
         return Result::ok($destFile);
     }
 
+    public function listBranches(string $repo, ?string $token): Result
+    {
+        $url = self::API . '/repos/' . $repo . '/branches?per_page=100';
+        $response = wp_remote_get($url, $this->args($token, 30));
+        if (is_wp_error($response)) {
+            return Result::fail('GitHub request failed: ' . $response->get_error_message());
+        }
+        $code = (int) wp_remote_retrieve_response_code($response);
+        if ($code !== 200) {
+            return Result::fail('GitHub returned HTTP ' . $code . ' listing branches for ' . $repo);
+        }
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (! is_array($body)) {
+            return Result::fail('GitHub branches response was not a list');
+        }
+        $names = array();
+        foreach ($body as $branch) {
+            if (isset($branch['name'])) {
+                $names[] = (string) $branch['name'];
+            }
+        }
+
+        return Result::ok($names);
+    }
+
     private function args(?string $token, int $timeout): array
     {
         $headers = array(

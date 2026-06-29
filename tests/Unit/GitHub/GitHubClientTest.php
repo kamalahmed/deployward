@@ -117,4 +117,26 @@ final class GitHubClientTest extends TestCase
 
         $this->assertFalse($result->isOk());
     }
+
+    public function test_list_branches_returns_names(): void
+    {
+        Functions\when('wp_remote_get')->justReturn(array());
+        Functions\when('wp_remote_retrieve_body')->justReturn('[{"name":"main"},{"name":"develop"}]');
+
+        $result = (new GitHubClient())->listBranches('Nara-IT/nara-core', 'ghp_x');
+
+        $this->assertTrue($result->isOk());
+        $this->assertSame(array('main', 'develop'), $result->data());
+    }
+
+    public function test_list_branches_fails_on_non_200(): void
+    {
+        Functions\when('wp_remote_retrieve_response_code')->justReturn(404);
+        Functions\when('wp_remote_get')->justReturn(array());
+        Functions\when('wp_remote_retrieve_body')->justReturn('');
+
+        $result = (new GitHubClient())->listBranches('Nara-IT/missing', null);
+
+        $this->assertFalse($result->isOk());
+    }
 }
