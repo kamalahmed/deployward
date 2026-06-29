@@ -5,6 +5,12 @@
   'use strict';
 
   /* -------------------------------------------------------------------------
+     Module constants
+     ---------------------------------------------------------------------- */
+
+  var LOG_PAGE_SIZE = 20;
+
+  /* -------------------------------------------------------------------------
      Bootstrap
      ---------------------------------------------------------------------- */
 
@@ -198,8 +204,8 @@
     const actions = el('div');
     actions.className = 'dw-deployment__actions';
 
-    actions.appendChild(buildDeployBtn(app, d, pill, footer));
-    actions.appendChild(buildRollbackBtn(app, d, pill, footer));
+    actions.appendChild(buildDeployBtn(app, d, pill));
+    actions.appendChild(buildRollbackBtn(app, d, pill));
     actions.appendChild(buildViewLogBtn(app, d));
     actions.appendChild(buildEditBtn(app, d));
     actions.appendChild(buildDeleteBtn(app, d, card));
@@ -227,7 +233,7 @@
     return 'Deployed';
   }
 
-  function buildDeployBtn(app, d, pill, footer) {
+  function buildDeployBtn(app, d, pill) {
     const btn = elBtn('Deploy now', 'dw-btn--primary');
     btn.addEventListener('click', function () {
       runAction(app, btn, pill, function () {
@@ -239,7 +245,7 @@
     return btn;
   }
 
-  function buildRollbackBtn(app, d, pill, footer) {
+  function buildRollbackBtn(app, d, pill) {
     const btn = elBtn('Rollback', 'dw-btn--danger');
     btn.addEventListener('click', function () {
       if (!confirm('Roll back ' + d.repo + '@' + d.branch + ' to the previous version?')) { return; }
@@ -685,6 +691,7 @@
   }
 
   function loadLog(app, depId, page, logArea, currentPage, setPage) {
+    if (!depId) { return; }
     clearEl(logArea);
     const loading = buildSkeleton();
     logArea.appendChild(loading);
@@ -766,7 +773,7 @@
     label.textContent = 'Page ' + page;
 
     const nextBtn = elBtn('Next', '');
-    nextBtn.disabled = count < 20;
+    nextBtn.disabled = count < LOG_PAGE_SIZE;
     nextBtn.addEventListener('click', function () { onNavigate(page + 1); });
 
     pager.appendChild(prevBtn);
