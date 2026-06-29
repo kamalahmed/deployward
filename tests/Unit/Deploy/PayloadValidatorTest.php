@@ -48,4 +48,20 @@ final class PayloadValidatorTest extends TestCase
 
         $this->assertTrue($result->isOk());
     }
+
+    public function test_rejects_theme_without_header(): void
+    {
+        file_put_contents($this->tmp . '/style.css', "/* just some css */\nbody { color: red; }");
+
+        $result = (new PayloadValidator())->validate($this->tmp, 'theme', 'nara');
+
+        $this->assertFalse($result->isOk());
+    }
+
+    public function test_rejects_missing_directory(): void
+    {
+        $result = (new PayloadValidator())->validate($this->tmp . '/does-not-exist', 'plugin', 'ghost');
+
+        $this->assertFalse($result->isOk());
+    }
 }
