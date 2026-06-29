@@ -2,7 +2,7 @@
 
 namespace Deployward\Security;
 
-class SignatureVerifier
+final class SignatureVerifier implements SignatureVerifierInterface
 {
     public function verify(string $payload, ?string $signatureHeader, string $secret): bool
     {

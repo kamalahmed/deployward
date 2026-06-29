@@ -3,22 +3,22 @@
 namespace Deployward\Http;
 
 use Deployward\Config\DeploymentRepositoryInterface;
-use Deployward\Deploy\DeployScheduler;
-use Deployward\Security\SignatureVerifier;
+use Deployward\Deploy\DeploySchedulerInterface;
+use Deployward\Security\SignatureVerifierInterface;
 
 final class WebhookController
 {
     /** @var DeploymentRepositoryInterface */
     private $repository;
-    /** @var SignatureVerifier */
+    /** @var SignatureVerifierInterface */
     private $verifier;
-    /** @var DeployScheduler */
+    /** @var DeploySchedulerInterface */
     private $scheduler;
 
     public function __construct(
         DeploymentRepositoryInterface $repository,
-        SignatureVerifier $verifier,
-        DeployScheduler $scheduler
+        SignatureVerifierInterface $verifier,
+        DeploySchedulerInterface $scheduler
     ) {
         $this->repository = $repository;
         $this->verifier = $verifier;
@@ -45,8 +45,9 @@ final class WebhookController
         if ($ref !== 'refs/heads/' . $deployment->branch()) {
             return ApiResponse::ok(array('message' => 'branch ignored'));
         }
+        $sha = is_array($payload) && isset($payload['after']) ? (string) $payload['after'] : '';
         $this->scheduler->schedule($deployment->id(), 'webhook', false);
 
-        return ApiResponse::ok(array('message' => 'queued'), 202);
+        return ApiResponse::ok(array('message' => 'queued', 'sha' => $sha), 202);
     }
 }
