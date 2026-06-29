@@ -4,7 +4,7 @@ namespace Deployward\Deploy;
 
 use Deployward\Support\Result;
 
-final class PayloadValidator
+final class PayloadValidator implements PayloadValidatorInterface
 {
     public function validate(string $dir, string $targetType, string $targetSlug): Result
     {

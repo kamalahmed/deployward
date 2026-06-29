@@ -4,7 +4,7 @@ namespace Deployward\Deploy;
 
 use Deployward\Support\Result;
 
-final class BackupManager
+final class BackupManager implements BackupManagerInterface
 {
     /** @var string */
     private $baseDir;

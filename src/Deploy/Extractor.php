@@ -4,7 +4,7 @@ namespace Deployward\Deploy;
 
 use Deployward\Support\Result;
 
-final class Extractor
+final class Extractor implements ExtractorInterface
 {
     /** @var string */
     private $workBaseDir;

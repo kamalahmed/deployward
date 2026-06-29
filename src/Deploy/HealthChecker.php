@@ -4,7 +4,7 @@ namespace Deployward\Deploy;
 
 use Deployward\Support\Result;
 
-final class HealthChecker
+final class HealthChecker implements HealthCheckerInterface
 {
     public function check(string $url): Result
     {
