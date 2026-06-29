@@ -6,7 +6,7 @@ use Deployward\Support\Result;
 
 final class GitHubClient
 {
-    const API = 'https://api.github.com';
+    private const API = 'https://api.github.com';
 
     public function resolveSha(string $repo, string $ref, ?string $token): Result
     {
@@ -42,7 +42,7 @@ final class GitHubClient
         if ($code !== 200) {
             return Result::fail('Download returned HTTP ' . $code);
         }
-        if (! is_file($destFile) || filesize($destFile) === 0) {
+        if (! is_file($destFile) || filesize($destFile) < 1) {
             return Result::fail('Downloaded archive is empty');
         }
 
