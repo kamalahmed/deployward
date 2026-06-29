@@ -65,3 +65,4 @@ or alongside Plan 2/3.
 - DeployScheduler: constructor is untyped ($container) for partial-mock testability; consider a ContainerInterface to restore the type hint.
 - RestRoutesTest: tighten the webhook permission assertion to === '__return_true'; add a test that the webhook-info route is canManage-gated.
 - admin.js webhook panel: associate each row <label> with its <input> (for/id) for screen readers; verify .dw-copy padding vs dw-btn in the browser.
+- Webhook 202 response 'sha' echoes the pushed payload.after, not necessarily the SHA actually deployed (Deployer re-resolves head async). Cosmetic response field; document it.
