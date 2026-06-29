@@ -140,6 +140,8 @@
      ---------------------------------------------------------------------- */
 
   function renderDeployments(app) {
+    clearEl(app.panelWrap);
+
     const panel = el('div');
     panel.className = 'dw-deployments';
 
@@ -253,7 +255,7 @@
         return app.api('POST', 'deployments/' + d.id + '/rollback');
       }, function () {
         renderDeployments(app);
-      });
+      }, 'Rolled back to the previous version.');
     });
     return btn;
   }
@@ -297,19 +299,20 @@
     return btn;
   }
 
-  function runAction(app, btn, pill, apiCall, onSuccess) {
+  function runAction(app, btn, pill, apiCall, onSuccess, successFallback) {
     setInFlight(btn, true);
     setPillDeploying(pill, true);
 
     apiCall().then(function (res) {
       setInFlight(btn, false);
       setPillDeploying(pill, false);
-      const msg = (res.data && (res.data.message || res.data.error)) || 'Done.';
       if (res.status >= 200 && res.status < 300) {
+        const msg = (res.data && res.data.message) || successFallback || 'Done.';
         app.showToast('is-ok', msg);
         onSuccess();
       } else {
-        app.showToast('is-error', msg);
+        const errMsg = (res.data && (res.data.message || res.data.error)) || 'Done.';
+        app.showToast('is-error', errMsg);
       }
     }).catch(function () {
       setInFlight(btn, false);
