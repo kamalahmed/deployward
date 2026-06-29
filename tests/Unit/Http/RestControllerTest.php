@@ -213,6 +213,26 @@ final class RestControllerTest extends TestCase
 
         $this->assertSame(404, $this->controller($repo)->rollback('nope')->status());
     }
+
+    public function test_created_id_is_lowercase_and_sanitize_key_stable(): void
+    {
+        Functions\when('wp_generate_password')->justReturn('AbCdEfGhIjKl');
+        $repo = Mockery::mock(DeploymentRepositoryInterface::class);
+        $captured = null;
+        $repo->shouldReceive('save')->once()->with(Mockery::on(function ($d) use (&$captured) {
+            $captured = $d->id();
+            return true;
+        }));
+
+        $response = $this->controller($repo)->saveDeployment(array(
+            'repo' => 'owner/repo', 'branch' => 'main', 'visibility' => 'public',
+            'target_type' => 'plugin', 'target_slug' => 'sample-plugin',
+        ));
+
+        $this->assertSame(201, $response->status());
+        $this->assertSame(strtolower($captured), $captured, 'Generated id must be lowercase so it survives sanitize_key in the route');
+        $this->assertStringStartsWith('dw_', $captured);
+    }
 }
 
 namespace Deployward\Tests\Unit\Http;
