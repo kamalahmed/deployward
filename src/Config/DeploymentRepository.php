@@ -47,8 +47,8 @@ final class DeploymentRepository
         if (! is_array($raw)) {
             $raw = array();
         }
-        $row = $deployment->toArray();
-        $row['token'] = $deployment->token() !== '' ? $this->encryptor->encrypt($deployment->token()) : '';
+        $encryptedToken = $deployment->token() !== '' ? $this->encryptor->encrypt($deployment->token()) : '';
+        $row = array_merge($deployment->toArray(), array('token' => $encryptedToken));
         $next = array_merge($raw, array($deployment->id() => $row));
         update_option(self::OPTION, $next, false);
     }
@@ -76,6 +76,7 @@ final class DeploymentRepository
         try {
             return $this->encryptor->decrypt($token);
         } catch (\Throwable $e) {
+            error_log('Deployward: failed to decrypt a stored token: ' . $e->getMessage());
             return '';
         }
     }

@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 final class DeploymentRepositoryTest extends TestCase
 {
     private $store = array();
+    private $lastAutoload = null;
 
     protected function setUp(): void
     {
@@ -22,8 +23,9 @@ final class DeploymentRepositoryTest extends TestCase
         Functions\when('get_option')->alias(function ($key, $default = false) {
             return array_key_exists($key, $this->store) ? $this->store[$key] : $default;
         });
-        Functions\when('update_option')->alias(function ($key, $value) {
+        Functions\when('update_option')->alias(function ($key, $value, $autoload = true) {
             $this->store[$key] = $value;
+            $this->lastAutoload = $autoload;
             return true;
         });
     }
@@ -78,5 +80,12 @@ final class DeploymentRepositoryTest extends TestCase
         $repo->delete('abc');
 
         $this->assertNull($repo->find('abc'));
+    }
+
+    public function test_save_uses_autoload_off(): void
+    {
+        $this->repository()->save($this->deployment());
+
+        $this->assertFalse($this->lastAutoload);
     }
 }
