@@ -209,6 +209,7 @@
     actions.appendChild(buildDeployBtn(app, d, pill));
     actions.appendChild(buildRollbackBtn(app, d, pill));
     actions.appendChild(buildViewLogBtn(app, d));
+    actions.appendChild(buildWebhookBtn(app, d, card));
     actions.appendChild(buildEditBtn(app, d));
     actions.appendChild(buildDeleteBtn(app, d, card));
 
@@ -267,6 +268,124 @@
       app.switchTab('activity-log');
     });
     return btn;
+  }
+
+  function buildWebhookBtn(app, d, card) {
+    const btn = elBtn('Webhook setup', 'dw-btn--ghost');
+
+    btn.addEventListener('click', function () {
+      const existing = card.querySelector('.dw-webhook');
+      if (existing) {
+        card.removeChild(existing);
+        return;
+      }
+      setInFlight(btn, true);
+      app.api('GET', 'deployments/' + d.id + '/webhook').then(function (res) {
+        setInFlight(btn, false);
+        if (res.status !== 200) {
+          app.showToast('is-error', (res.data && res.data.error) || 'Could not load webhook info.');
+          return;
+        }
+        const panel = buildWebhookPanel(app, d, res.data.secret);
+        card.appendChild(panel);
+      }).catch(function () {
+        setInFlight(btn, false);
+        app.showToast('is-error', 'Network error loading webhook info.');
+      });
+    });
+
+    return btn;
+  }
+
+  function buildWebhookPanel(app, d, secret) {
+    const root = app.el.dataset.root;
+    const payloadUrl = root + 'webhook/' + d.id;
+
+    const panel = el('div');
+    panel.className = 'dw-webhook';
+
+    const titleEl = el('p');
+    titleEl.className = 'dw-webhook__title';
+    titleEl.textContent = 'GitHub Webhook Setup';
+    panel.appendChild(titleEl);
+
+    panel.appendChild(buildWebhookRow('Payload URL', payloadUrl));
+    panel.appendChild(buildWebhookRow('Secret', secret));
+
+    const fixedRow = el('div');
+    fixedRow.className = 'dw-webhook__fixed';
+
+    const ctLine = el('p');
+    ctLine.className = 'dw-webhook__hint';
+    ctLine.textContent = 'Content type: application/json';
+    fixedRow.appendChild(ctLine);
+
+    const evLine = el('p');
+    evLine.className = 'dw-webhook__hint';
+    evLine.textContent = 'Event: Just the push event';
+    fixedRow.appendChild(evLine);
+
+    panel.appendChild(fixedRow);
+    return panel;
+  }
+
+  function buildWebhookRow(labelText, value) {
+    const row = el('div');
+    row.className = 'dw-webhook__row';
+
+    const labelEl = el('label');
+    labelEl.className = 'dw-label';
+    labelEl.textContent = labelText;
+    row.appendChild(labelEl);
+
+    const valueWrap = el('div');
+    valueWrap.className = 'dw-webhook__value-wrap';
+
+    const valueEl = el('input');
+    valueEl.type = 'text';
+    valueEl.className = 'dw-webhook__value';
+    valueEl.readOnly = true;
+    valueEl.value = value;
+    valueWrap.appendChild(valueEl);
+
+    const copyBtn = elBtn('Copy', 'dw-copy');
+    const copiedSpan = el('span');
+    copiedSpan.className = 'dw-copied';
+    copiedSpan.textContent = 'Copied';
+
+    copyBtn.addEventListener('click', function () {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(function () {
+          showCopied(copyBtn, copiedSpan);
+        }).catch(function () {
+          fallbackCopy(valueEl, copyBtn, copiedSpan);
+        });
+      } else {
+        fallbackCopy(valueEl, copyBtn, copiedSpan);
+      }
+    });
+
+    valueWrap.appendChild(copyBtn);
+    valueWrap.appendChild(copiedSpan);
+    row.appendChild(valueWrap);
+    return row;
+  }
+
+  function showCopied(copyBtn, copiedSpan) {
+    copyBtn.disabled = true;
+    copiedSpan.classList.add('is-visible');
+    setTimeout(function () {
+      copyBtn.disabled = false;
+      copiedSpan.classList.remove('is-visible');
+    }, 1800);
+  }
+
+  function fallbackCopy(valueEl, copyBtn, copiedSpan) {
+    valueEl.select();
+    try {
+      document.execCommand('copy');
+      showCopied(copyBtn, copiedSpan);
+    } catch (_) { /* silent: user can copy manually from the selected text */ }
   }
 
   function buildEditBtn(app, d) {
@@ -818,10 +937,24 @@
       { title: 'Save and deploy', desc: 'Click "Save deployment", then click "Deploy now" on the Deployments tab.' },
     ]));
 
-    const note = el('p');
-    note.className = 'dw-help';
-    note.textContent = 'Automatic deploy-on-push via webhooks arrives in the next release (the triggers module).';
-    wrap.appendChild(note);
+    wrap.appendChild(buildFlow('Automatic deploys (webhook)', [
+      {
+        title: 'Open Webhook setup',
+        desc: 'On the Deployments tab, click "Webhook setup" on the deployment you want to auto-deploy.',
+      },
+      {
+        title: 'Copy the Payload URL and Secret',
+        desc: 'Click the Copy button next to each value and keep them ready.',
+      },
+      {
+        title: 'Add the webhook in GitHub',
+        desc: 'Go to your GitHub repo: Settings -> Webhooks -> Add webhook. Paste the Payload URL, set Content type to application/json, paste the Secret, choose "Just the push event", then click Add webhook.',
+      },
+      {
+        title: 'Push to deploy',
+        desc: 'Every push to the watched branch triggers an automatic deploy. Without a webhook, Deployward also polls every 5 minutes and deploys new commits automatically.',
+      },
+    ]));
 
     app.panelWrap.appendChild(wrap);
   }
