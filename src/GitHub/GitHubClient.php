@@ -4,7 +4,7 @@ namespace Deployward\GitHub;
 
 use Deployward\Support\Result;
 
-final class GitHubClient
+final class GitHubClient implements GitHubClientInterface
 {
     private const API = 'https://api.github.com';
 

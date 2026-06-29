@@ -4,7 +4,7 @@ namespace Deployward\Config;
 
 use Deployward\Security\Encryptor;
 
-final class DeploymentRepository
+final class DeploymentRepository implements DeploymentRepositoryInterface
 {
     const OPTION = 'deployward_deployments';
 

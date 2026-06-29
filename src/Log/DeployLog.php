@@ -2,7 +2,7 @@
 
 namespace Deployward\Log;
 
-final class DeployLog
+final class DeployLog implements DeployLogInterface
 {
     /** @var object */
     private $wpdb;
