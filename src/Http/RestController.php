@@ -56,7 +56,7 @@ final class RestController
             : wp_generate_password(32, false);
 
         if ($id === '') {
-            $id = 'dw_' . substr(wp_generate_password(24, false), 0, 12);
+            $id = 'dw_' . strtolower(substr(wp_generate_password(24, false), 0, 12));
         }
 
         try {
