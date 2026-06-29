@@ -102,6 +102,20 @@ blocking the 202 response.
 9. Record the result (SHA, trigger source, status, errors) in the audit log and send
    an email notification.
 
+### Why maintenance mode is exited before the health check (step 7 before step 8)
+
+WordPress's `.maintenance` file makes the site return HTTP 503 to every request,
+including the loopback health check. If maintenance stayed enabled during the health
+check, the checker would always see a 503 (treated as unhealthy) and roll back every
+deploy. Maintenance is therefore disabled immediately after the atomic swap, before
+the health check runs. The cost is a brief exposure window: between the swap and the
+end of the health-check-plus-rollback sequence (sub-second to a few seconds), live
+traffic can hit newly deployed code that the health check may then roll back. This is
+inherent to in-place deploys; the future build/release-artifact mode (and a possible
+symlink-style atomic switch) can shrink or remove this window. The maintenance window
+around the swap itself is guaranteed to close via a `finally`, so an unexpected error
+during the swap can never leave the site stuck in maintenance.
+
 ## 7. Authentication and secrets
 
 - GitHub fine-grained Personal Access Token (read-only Contents, scoped to the listed
