@@ -4,9 +4,11 @@ namespace Deployward\Tests\Unit\Http;
 
 use Deployward\Config\Deployment;
 use Deployward\Config\DeploymentRepositoryInterface;
-use Deployward\Deploy\DeployScheduler;
+use Deployward\Deploy\DeploySchedulerInterface;
 use Deployward\Http\WebhookController;
 use Deployward\Security\SignatureVerifier;
+use Deployward\Security\SignatureVerifierInterface;
+use Deployward\Deploy\DeployScheduler;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
@@ -32,7 +34,7 @@ final class WebhookControllerTest extends TestCase
     {
         $repo = Mockery::mock(DeploymentRepositoryInterface::class);
         $repo->shouldReceive('find')->with('nope')->andReturn(null);
-        $scheduler = Mockery::mock(DeployScheduler::class);
+        $scheduler = Mockery::mock(DeploySchedulerInterface::class);
         $scheduler->shouldNotReceive('schedule');
 
         $res = $this->controller($repo, new SignatureVerifier(), $scheduler)
@@ -45,9 +47,9 @@ final class WebhookControllerTest extends TestCase
     {
         $repo = Mockery::mock(DeploymentRepositoryInterface::class);
         $repo->shouldReceive('find')->andReturn($this->deployment());
-        $verifier = Mockery::mock(SignatureVerifier::class);
+        $verifier = Mockery::mock(SignatureVerifierInterface::class);
         $verifier->shouldReceive('verify')->andReturn(false);
-        $scheduler = Mockery::mock(DeployScheduler::class);
+        $scheduler = Mockery::mock(DeploySchedulerInterface::class);
         $scheduler->shouldNotReceive('schedule');
 
         $res = $this->controller($repo, $verifier, $scheduler)
@@ -60,9 +62,9 @@ final class WebhookControllerTest extends TestCase
     {
         $repo = Mockery::mock(DeploymentRepositoryInterface::class);
         $repo->shouldReceive('find')->andReturn($this->deployment());
-        $verifier = Mockery::mock(SignatureVerifier::class);
+        $verifier = Mockery::mock(SignatureVerifierInterface::class);
         $verifier->shouldReceive('verify')->andReturn(true);
-        $scheduler = Mockery::mock(DeployScheduler::class);
+        $scheduler = Mockery::mock(DeploySchedulerInterface::class);
         $scheduler->shouldNotReceive('schedule');
 
         $res = $this->controller($repo, $verifier, $scheduler)
@@ -76,9 +78,9 @@ final class WebhookControllerTest extends TestCase
     {
         $repo = Mockery::mock(DeploymentRepositoryInterface::class);
         $repo->shouldReceive('find')->andReturn($this->deployment());
-        $verifier = Mockery::mock(SignatureVerifier::class);
+        $verifier = Mockery::mock(SignatureVerifierInterface::class);
         $verifier->shouldReceive('verify')->andReturn(true);
-        $scheduler = Mockery::mock(DeployScheduler::class);
+        $scheduler = Mockery::mock(DeploySchedulerInterface::class);
         $scheduler->shouldNotReceive('schedule');
 
         $res = $this->controller($repo, $verifier, $scheduler)
@@ -91,14 +93,15 @@ final class WebhookControllerTest extends TestCase
     {
         $repo = Mockery::mock(DeploymentRepositoryInterface::class);
         $repo->shouldReceive('find')->andReturn($this->deployment());
-        $verifier = Mockery::mock(SignatureVerifier::class);
+        $verifier = Mockery::mock(SignatureVerifierInterface::class);
         $verifier->shouldReceive('verify')->andReturn(true);
-        $scheduler = Mockery::mock(DeployScheduler::class);
+        $scheduler = Mockery::mock(DeploySchedulerInterface::class);
         $scheduler->shouldReceive('schedule')->once()->with('dw_abc', 'webhook', false);
 
         $res = $this->controller($repo, $verifier, $scheduler)
-            ->handle('dw_abc', '{"ref":"refs/heads/main"}', 'sha256=ok', 'push');
+            ->handle('dw_abc', '{"ref":"refs/heads/main","after":"abc1234"}', 'sha256=ok', 'push');
 
         $this->assertSame(202, $res->status());
+        $this->assertSame('abc1234', $res->data()['sha']);
     }
 }

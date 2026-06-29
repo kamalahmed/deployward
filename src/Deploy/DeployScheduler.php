@@ -4,7 +4,7 @@ namespace Deployward\Deploy;
 
 use Deployward\Container;
 
-class DeployScheduler
+final class DeployScheduler implements DeploySchedulerInterface
 {
     const HOOK = 'deployward_run_deploy';
 
