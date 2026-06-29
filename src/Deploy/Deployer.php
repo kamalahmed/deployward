@@ -9,7 +9,7 @@ use Deployward\Log\DeployLogInterface;
 use Deployward\Notify\NotifierInterface;
 use Deployward\Support\Result;
 
-final class Deployer
+final class Deployer implements DeployerInterface
 {
     /** @var GitHubClientInterface */
     private $github;
