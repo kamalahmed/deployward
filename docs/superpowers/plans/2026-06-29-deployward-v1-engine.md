@@ -55,21 +55,37 @@ These apply to every task. Copied verbatim from the spec.
     "authors": [{ "name": "Kamal Ahmed" }],
     "require": { "php": ">=7.4" },
     "require-dev": {
-        "phpunit/phpunit": "^9.6",
+        "phpunit/phpunit": "^10.5",
         "brain/monkey": "^2.6",
         "mockery/mockery": "^1.6"
     },
     "autoload": { "psr-4": { "Deployward\\": "src/" } },
     "autoload-dev": { "psr-4": { "Deployward\\Tests\\": "tests/" } },
-    "config": { "sort-packages": true }
+    "config": {
+        "sort-packages": true,
+        "platform": { "php": "8.2.30" }
+    }
 }
 ```
+
+The test runner is the Local-bundled PHP 8.2.30 binary (matches the site runtime). Composer runs under the system PHP but resolves dependencies for 8.2.30 via the `platform` pin. The canonical test invocation for every task is:
+
+```bash
+PHP="/Users/kamalahmed-nara/Library/Application Support/Local/lightning-services/php-8.2.30+1/bin/darwin-arm64/bin/php"
+"$PHP" vendor/bin/phpunit
+```
+
+Replace `vendor/bin/phpunit ...` in any task's run command with `"$PHP" vendor/bin/phpunit ...`. Also ensure `.gitignore` includes `/.phpunit.cache/`.
 
 - [ ] **Step 2: Write `phpunit.xml.dist`**
 
 ```xml
 <?xml version="1.0"?>
-<phpunit bootstrap="tests/bootstrap.php" colors="true" cacheResultFile=".phpunit.result.cache">
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache">
     <testsuites>
         <testsuite name="unit">
             <directory>tests/Unit</directory>
