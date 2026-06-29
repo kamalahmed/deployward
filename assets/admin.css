@@ -789,7 +789,86 @@
 }
 
 /* ---------------------------------------------------------------------------
-   15. Responsive layout
+   15. Webhook setup panel
+   --------------------------------------------------------------------------- */
+
+#deployward-app .dw-webhook {
+  margin-top: var(--dw-space-md);
+  padding: var(--dw-space-md) var(--dw-space-lg);
+  background: var(--dw-card);
+  border: 1px solid var(--dw-border);
+  border-radius: var(--dw-radius);
+  box-shadow: var(--dw-shadow-sm);
+  display: grid;
+  gap: var(--dw-space-md);
+}
+
+#deployward-app .dw-webhook__title {
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--dw-text);
+  margin: 0;
+}
+
+#deployward-app .dw-webhook__row {
+  display: grid;
+  gap: var(--dw-space-xs);
+}
+
+#deployward-app .dw-webhook__value-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--dw-space-sm);
+}
+
+#deployward-app .dw-webhook__value {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
+  font-size: 0.82em;
+  color: var(--dw-text);
+  background: var(--dw-bg);
+  border: 1px solid var(--dw-border);
+  border-radius: 6px;
+  outline: none;
+  cursor: text;
+  user-select: all;
+}
+
+#deployward-app .dw-copy {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  font-size: 0.82em;
+}
+
+#deployward-app .dw-copied {
+  font-size: 0.82em;
+  font-weight: 500;
+  color: var(--dw-ok);
+  display: none;
+}
+
+#deployward-app .dw-copied.is-visible {
+  display: inline;
+}
+
+#deployward-app .dw-webhook__fixed {
+  display: grid;
+  gap: var(--dw-space-xs);
+}
+
+#deployward-app .dw-webhook__hint {
+  font-size: 0.82em;
+  color: var(--dw-muted);
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
+}
+
+/* ---------------------------------------------------------------------------
+   16. Responsive layout
    --------------------------------------------------------------------------- */
 
 @media (max-width: 782px) {
