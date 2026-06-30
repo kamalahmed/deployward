@@ -77,4 +77,28 @@ final class DeploymentTest extends TestCase
         $this->assertSame('ghp_new', $next->token());
         $this->assertNotSame($deployment, $next);
     }
+
+    public function test_normalize_repo_strips_github_url_forms(): void
+    {
+        $this->assertSame('kamalahmed/licensekit', Deployment::normalizeRepo('https://github.com/kamalahmed/licensekit'));
+        $this->assertSame('kamalahmed/licensekit', Deployment::normalizeRepo('https://github.com/kamalahmed/licensekit.git'));
+        $this->assertSame('kamalahmed/licensekit', Deployment::normalizeRepo('https://github.com/kamalahmed/licensekit/'));
+        $this->assertSame('kamalahmed/licensekit', Deployment::normalizeRepo('github.com/kamalahmed/licensekit'));
+        $this->assertSame('kamalahmed/licensekit', Deployment::normalizeRepo('git@github.com:kamalahmed/licensekit.git'));
+        $this->assertSame('kamalahmed/licensekit', Deployment::normalizeRepo('kamalahmed/licensekit'));
+    }
+
+    public function test_from_array_accepts_full_github_url(): void
+    {
+        $d = Deployment::fromArray($this->validData(array('repo' => 'https://github.com/kamalahmed/licensekit')));
+        $this->assertSame('kamalahmed/licensekit', $d->repo());
+    }
+
+    public function test_from_array_derives_slug_when_omitted(): void
+    {
+        $data = $this->validData(array('repo' => 'https://github.com/kamalahmed/licensekit'));
+        unset($data['target_slug']);
+        $d = Deployment::fromArray($data);
+        $this->assertSame('licensekit', $d->targetSlug());
+    }
 }

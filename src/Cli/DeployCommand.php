@@ -34,8 +34,8 @@ final class DeployCommand
      * --repo=<owner-repo>
      * : The GitHub repository in owner/repo format.
      *
-     * --slug=<slug>
-     * : Target plugin or theme slug (destination directory name).
+     * [--slug=<slug>]
+     * : Optional. Target plugin/theme slug; defaults to the repository name.
      *
      * [--id=<id>]
      * : Optional stable id. Generated when omitted.

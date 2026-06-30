@@ -256,6 +256,28 @@ final class RestControllerTest extends TestCase
 
         $this->assertSame(404, $this->controller($repo)->webhookInfo('nope')->status());
     }
+
+    public function test_branches_normalizes_a_github_url(): void
+    {
+        $github = Mockery::mock(GitHubClientInterface::class);
+        $github->shouldReceive('listBranches')->once()->with('kamalahmed/licensekit', null)->andReturn(\Deployward\Support\Result::ok(array('main')));
+        $response = $this->controller(Mockery::mock(DeploymentRepositoryInterface::class), null, null, $github)
+            ->branches(array('repo' => 'https://github.com/kamalahmed/licensekit', 'visibility' => 'public'));
+        $this->assertSame(200, $response->status());
+    }
+
+    public function test_save_with_url_and_empty_slug_normalizes_and_derives(): void
+    {
+        $repo = Mockery::mock(DeploymentRepositoryInterface::class);
+        $repo->shouldReceive('save')->once()->with(Mockery::on(function ($d) {
+            return $d->repo() === 'kamalahmed/licensekit' && $d->targetSlug() === 'licensekit';
+        }));
+        $response = $this->controller($repo)->saveDeployment(array(
+            'repo' => 'https://github.com/kamalahmed/licensekit', 'branch' => 'main',
+            'visibility' => 'public', 'target_type' => 'plugin',
+        ));
+        $this->assertSame(201, $response->status());
+    }
 }
 
 namespace Deployward\Tests\Unit\Http;
