@@ -476,7 +476,7 @@
     const repoField = buildField('repo', 'Repository', true);
     const repoInput = repoField.input;
     repoInput.className = 'dw-input';
-    repoInput.placeholder = 'owner/repo-name';
+    repoInput.placeholder = 'owner/repo or https://github.com/owner/repo';
     repoInput.value = isEdit ? d.repo : '';
     form.appendChild(repoField.wrapper);
 
@@ -558,14 +558,14 @@
     form.appendChild(typeField.wrapper);
 
     /* Target slug */
-    const slugField = buildField('target_slug', 'Target Slug', true);
+    const slugField = buildField('target_slug', 'Target Slug', false);
     const slugInput = slugField.input;
     slugInput.className = 'dw-input';
-    slugInput.placeholder = 'e.g. my-plugin';
+    slugInput.placeholder = 'Optional, defaults to the repo name';
     slugInput.value = isEdit ? d.target_slug : '';
     const slugHelp = el('p');
     slugHelp.className = 'dw-help';
-    slugHelp.textContent = 'The folder name of the plugin or theme.';
+    slugHelp.textContent = 'The folder name of the plugin or theme. Leave blank to use the repository name.';
     slugField.wrapper.appendChild(slugHelp);
     form.appendChild(slugField.wrapper);
 
@@ -710,7 +710,7 @@
       ? branchSelect.value
       : branchFallback.value.trim();
 
-    if (type === 'plugin' && slug === 'deployward') {
+    if (slug !== '' && type === 'plugin' && slug === 'deployward') {
       const inlineErr = el('p');
       inlineErr.className = 'dw-error';
       inlineErr.textContent = 'Deployward cannot deploy itself as a target.';

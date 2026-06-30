@@ -138,7 +138,7 @@ final class RestController
 
     public function branches(array $params): ApiResponse
     {
-        $repo = isset($params['repo']) ? (string) $params['repo'] : '';
+        $repo = \Deployward\Config\Deployment::normalizeRepo(isset($params['repo']) ? (string) $params['repo'] : '');
         $visibility = isset($params['visibility']) ? (string) $params['visibility'] : 'public';
         $token = ($visibility === 'private' && isset($params['token'])) ? (string) $params['token'] : null;
         if ($token === '') {
