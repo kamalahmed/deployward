@@ -101,10 +101,12 @@ final class Deployer implements DeployerInterface
         if (! $payload->isOk()) {
             return $this->finish($deployment, $trigger, $payload, $sha);
         }
-        $newDir = (string) $payload->data();
-
-        $swap = $this->swap($deployment, $newDir, $sha);
-        $this->extractor->cleanup($newDir);
+        $prepared = $payload->data();
+        try {
+            $swap = $this->swap($deployment, $prepared['directory'], $sha);
+        } finally {
+            $this->extractor->cleanup($prepared['archive_root']);
+        }
         if ($swap->isOk()) {
             $this->backups->prune($deployment->targetSlug(), $this->keepBackups);
             $this->repository->save($deployment->withLastDeployedSha($sha));
@@ -134,30 +136,81 @@ final class Deployer implements DeployerInterface
 
     private function preparePayload(Deployment $deployment, string $sha): Result
     {
-        $zip = $this->tempDir . '/deployward-' . substr($sha, 0, 8) . '.zip';
-        $download = $this->github->downloadZipball(
-            $deployment->repo(),
-            $sha,
-            $this->tokenOrNull($deployment),
-            $zip
-        );
-        if (! $download->isOk()) {
-            return $download;
+        $zip = @tempnam($this->tempDir, 'deployward-');
+        if ($zip === false) {
+            return Result::fail('Could not create a temporary deployment archive');
         }
+        try {
+            $download = $this->github->downloadZipball(
+                $deployment->repo(),
+                $sha,
+                $this->tokenOrNull($deployment),
+                $zip
+            );
+            if (! $download->isOk()) {
+                return $download;
+            }
 
-        $extract = $this->extractor->extract($zip);
-        @unlink($zip);
+            $extract = $this->extractor->extract($zip);
+        } finally {
+            @unlink($zip);
+        }
         if (! $extract->isOk()) {
             return $extract;
         }
-        $newDir = (string) $extract->data();
-
-        $valid = $this->validator->validate($newDir, $deployment->targetType(), $deployment->targetSlug());
-        if (! $valid->isOk()) {
-            return $valid;
+        $archiveRoot = (string) $extract->data();
+        $prepared = false;
+        try {
+            $selected = $this->selectSource($archiveRoot, $deployment->sourcePath());
+            if (! $selected->isOk()) {
+                return $selected;
+            }
+            $newDir = (string) $selected->data();
+            $valid = $this->validator->validate($newDir, $deployment->targetType(), $deployment->targetSlug());
+            if (! $valid->isOk()) {
+                return $valid;
+            }
+            $prepared = true;
+            return Result::ok(array('directory' => $newDir, 'archive_root' => $archiveRoot));
+        } finally {
+            if (! $prepared) {
+                $this->extractor->cleanup($archiveRoot);
+            }
         }
+    }
 
-        return Result::ok($newDir);
+    private function selectSource(string $archiveRoot, string $sourcePath): Result
+    {
+        $root = realpath($archiveRoot);
+        $directory = $sourcePath === '' ? $archiveRoot : $archiveRoot . '/' . $sourcePath;
+        $resolved = realpath($directory);
+        if ($root === false || $resolved === false || ! is_dir($resolved)) {
+            return Result::fail('source_path directory is missing from the repository archive');
+        }
+        if ($resolved !== $root && strpos($resolved, $root . DIRECTORY_SEPARATOR) !== 0) {
+            return Result::fail('source_path must stay inside the repository archive');
+        }
+        // Symlinks may change meaning after the directory moves into WordPress.
+        $part = $archiveRoot;
+        if (is_link($part)) {
+            return Result::fail('source_path cannot contain symbolic links');
+        }
+        foreach ($sourcePath === '' ? array() : explode('/', $sourcePath) as $segment) {
+            $part .= '/' . $segment;
+            if (is_link($part)) {
+                return Result::fail('source_path cannot contain symbolic links');
+            }
+        }
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($items as $item) {
+            if ($item->isLink()) {
+                return Result::fail('Deployment payload cannot contain symbolic links');
+            }
+        }
+        return Result::ok($directory);
     }
 
     private function swap(Deployment $deployment, string $newDir, string $sha): Result

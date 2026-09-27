@@ -67,6 +67,7 @@ final class RestController
                 'visibility' => isset($params['visibility']) ? $params['visibility'] : 'public',
                 'target_type' => isset($params['target_type']) ? $params['target_type'] : 'plugin',
                 'target_slug' => isset($params['target_slug']) ? $params['target_slug'] : '',
+                'source_path' => isset($params['source_path']) ? $params['source_path'] : ($existing !== null ? $existing->sourcePath() : ''),
                 'token' => $token,
                 'webhook_secret' => $secret,
                 'last_deployed_sha' => $existing !== null ? $existing->lastDeployedSha() : '',
@@ -76,6 +77,16 @@ final class RestController
             ));
         } catch (\InvalidArgumentException $e) {
             return ApiResponse::error($e->getMessage(), 422);
+        }
+
+        if ($existing !== null && (
+            $existing->repo() !== $deployment->repo()
+            || $existing->branch() !== $deployment->branch()
+            || $existing->sourcePath() !== $deployment->sourcePath()
+            || $existing->targetType() !== $deployment->targetType()
+            || $existing->targetSlug() !== $deployment->targetSlug()
+        )) {
+            $deployment = $deployment->withLastDeployedSha('');
         }
 
         $this->repository->save($deployment);
@@ -181,6 +192,7 @@ final class RestController
             'visibility' => $deployment->visibility(),
             'target_type' => $deployment->targetType(),
             'target_slug' => $deployment->targetSlug(),
+            'source_path' => $deployment->sourcePath(),
             'last_deployed_sha' => $deployment->lastDeployedSha(),
             'has_token' => $deployment->token() !== '',
             'webhook_deploy' => $deployment->deploysOnPush(),

@@ -81,4 +81,22 @@ final class ExtractorTest extends TestCase
 
         $this->assertDirectoryExists($keep);
     }
+    public function test_cleanup_removes_entire_archive_for_moved_nested_payload(): void
+    {
+        $container = $this->tmp . '/dw-extract-abc';
+        mkdir($container . '/repo/packages', 0777, true);
+        file_put_contents($container . '/repo/README.md', 'keep out of deployment');
+        (new Extractor($this->tmp))->cleanup($container . '/repo/packages/theme');
+        $this->assertDirectoryDoesNotExist($container);
+    }
+
+    public function test_cleanup_refuses_extract_named_directory_outside_work_base(): void
+    {
+        $outside = $this->tmp . '/outside/dw-extract-other';
+        mkdir($outside, 0777, true);
+        mkdir($this->tmp . '/work');
+        (new Extractor($this->tmp . '/work'))->cleanup($outside);
+        $this->assertDirectoryExists($outside);
+    }
+
 }

@@ -21,6 +21,8 @@ final class Deployment
     /** @var string */
     private $targetSlug;
     /** @var string */
+    private $sourcePath;
+    /** @var string */
     private $token;
     /** @var string */
     private $webhookSecret;
@@ -45,7 +47,8 @@ final class Deployment
         string $lastDeployedSha,
         bool $webhookDeploy = false,
         bool $pollDeploy = false,
-        int $pollInterval = 5
+        int $pollInterval = 5,
+        string $sourcePath = ''
     ) {
         $this->id = $id;
         $this->repo = $repo;
@@ -59,6 +62,7 @@ final class Deployment
         $this->webhookDeploy = $webhookDeploy;
         $this->pollDeploy = $pollDeploy;
         $this->pollInterval = $pollInterval;
+        $this->sourcePath = self::validateSourcePath($sourcePath);
     }
 
     public static function normalizeRepo(string $input): string
@@ -79,6 +83,23 @@ final class Deployment
             return $parts[0] . '/' . $parts[1];
         }
         return $repo;
+    }
+
+    private static function validateSourcePath(string $path): string
+    {
+        if ($path === '') {
+            return '';
+        }
+        // Only relative, slash-separated directory names; never normalize traversal.
+        if (preg_match('~[\\\\:\x00-\x1f\x7f]~', $path)) {
+            throw new \InvalidArgumentException('invalid source_path: use a relative repository directory');
+        }
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '' || $segment === '.' || $segment === '..') {
+                throw new \InvalidArgumentException('invalid source_path: use a relative repository directory');
+            }
+        }
+        return $path;
     }
 
     private static function deriveSlug(string $repo): string
@@ -140,7 +161,8 @@ final class Deployment
             isset($data['last_deployed_sha']) ? (string) $data['last_deployed_sha'] : '',
             $webhook,
             $poll,
-            $interval
+            $interval,
+            isset($data['source_path']) ? (string) $data['source_path'] : ''
         );
     }
 
@@ -153,6 +175,7 @@ final class Deployment
             'visibility' => $this->visibility,
             'target_type' => $this->targetType,
             'target_slug' => $this->targetSlug,
+            'source_path' => $this->sourcePath,
             'token' => $this->token,
             'webhook_secret' => $this->webhookSecret,
             'last_deployed_sha' => $this->lastDeployedSha,
@@ -190,6 +213,11 @@ final class Deployment
     public function targetSlug(): string
     {
         return $this->targetSlug;
+    }
+
+    public function sourcePath(): string
+    {
+        return $this->sourcePath;
     }
 
     public function token(): string

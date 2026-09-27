@@ -205,4 +205,26 @@ final class DeploymentTest extends TestCase
         $this->assertTrue($next->deploysOnSchedule());
         $this->assertSame(30, $next->pollInterval());
     }
+    public function test_source_path_defaults_to_repository_root_and_survives_updates(): void
+    {
+        $this->assertSame('', Deployment::fromArray($this->validData())->toArray()['source_path'] ?? null);
+        $deployment = Deployment::fromArray($this->validData(array('source_path' => 'packages/theme')));
+        $this->assertSame('packages/theme', $deployment->withLastDeployedSha('newsha')->toArray()['source_path'] ?? null);
+    }
+
+    /** @dataProvider unsafeSourcePaths */
+    public function test_rejects_unsafe_source_paths(string $path): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        Deployment::fromArray($this->validData(array('source_path' => $path)));
+    }
+
+    public static function unsafeSourcePaths(): array
+    {
+        return array_map(function ($path) { return array($path); }, array(
+            '../theme', 'theme/../plugin', '/theme', 'C:/theme', 'theme\\child',
+            './theme', 'theme//child', 'theme/', "theme\0child", "theme\nchild",
+        ));
+    }
+
 }

@@ -70,11 +70,19 @@ final class Extractor implements ExtractorInterface
 
     private function extractContainer(string $extractedRoot): ?string
     {
-        if (strpos(basename($extractedRoot), self::EXTRACT_PREFIX) === 0) {
-            return $extractedRoot;
+        $base = realpath($this->workBaseDir);
+        if ($base === false) {
+            return null;
         }
-        if (strpos(basename(dirname($extractedRoot)), self::EXTRACT_PREFIX) === 0) {
-            return dirname($extractedRoot);
+        // The payload may already have been moved. Walk lexical parents until
+        // reaching a container directly under our configured work directory.
+        $candidate = rtrim($extractedRoot, '/');
+        while ($candidate !== '' && dirname($candidate) !== $candidate) {
+            if (strpos(basename($candidate), self::EXTRACT_PREFIX) === 0
+                && realpath(dirname($candidate)) === $base && ! is_link($candidate)) {
+                return $candidate;
+            }
+            $candidate = dirname($candidate);
         }
 
         return null;

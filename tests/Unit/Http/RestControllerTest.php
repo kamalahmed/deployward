@@ -110,6 +110,75 @@ final class RestControllerTest extends TestCase
         $this->assertSame(200, $response->status());
     }
 
+
+    public function test_source_path_is_saved_and_returned(): void
+    {
+        $repo = Mockery::mock(DeploymentRepositoryInterface::class);
+        $repo->shouldReceive('save')->once();
+        $response = $this->controller($repo)->saveDeployment(array(
+            'repo' => 'owner/repo', 'target_type' => 'theme', 'source_path' => 'theme',
+        ));
+        $this->assertSame(201, $response->status());
+        $this->assertSame('theme', $response->data()['deployment']['source_path'] ?? null);
+    }
+
+    public function test_omitted_source_path_preserves_existing_selection(): void
+    {
+        $data = $this->deployment()->toArray();
+        $data['source_path'] = 'plugin';
+        $repo = Mockery::mock(DeploymentRepositoryInterface::class);
+        $repo->shouldReceive('find')->with('dw_1')->andReturn(Deployment::fromArray($data));
+        $repo->shouldReceive('save')->once();
+        unset($data['source_path']);
+        $response = $this->controller($repo)->saveDeployment($data);
+        $this->assertSame('plugin', $response->data()['deployment']['source_path'] ?? null);
+    }
+
+    public function test_unsafe_source_path_returns_422(): void
+    {
+        $repo = Mockery::mock(DeploymentRepositoryInterface::class);
+        $repo->shouldReceive('save');
+        $response = $this->controller($repo)->saveDeployment(array(
+            'repo' => 'owner/repo', 'source_path' => '../theme',
+        ));
+        $this->assertSame(422, $response->status());
+    }
+
+    /** @dataProvider changedDeploymentIdentities */
+    public function test_identity_change_clears_deployed_sha(string $field, string $value): void
+    {
+        $existing = $this->deployment();
+        $data = $existing->toArray();
+        $data[$field] = $value;
+        $repo = Mockery::mock(DeploymentRepositoryInterface::class);
+        $repo->shouldReceive('find')->with('dw_1')->andReturn($existing);
+        $repo->shouldReceive('save')->once();
+        $response = $this->controller($repo)->saveDeployment($data);
+        $this->assertSame(200, $response->status());
+        $this->assertSame('', $response->data()['deployment']['last_deployed_sha']);
+    }
+
+    public static function changedDeploymentIdentities(): array
+    {
+        return array(
+            array('source_path', 'plugin'), array('repo', 'owner/another'),
+            array('branch', 'develop'), array('target_type', 'theme'), array('target_slug', 'another'),
+        );
+    }
+
+    public function test_equivalent_repo_url_and_trigger_changes_preserve_sha(): void
+    {
+        $existing = $this->deployment();
+        $data = $existing->toArray();
+        $data['repo'] = 'https://github.com/Nara-IT/nara-core.git';
+        $data['webhook_deploy'] = true;
+        $repo = Mockery::mock(DeploymentRepositoryInterface::class);
+        $repo->shouldReceive('find')->with('dw_1')->andReturn($existing);
+        $repo->shouldReceive('save')->once();
+        $response = $this->controller($repo)->saveDeployment($data);
+        $this->assertSame('abc1234', $response->data()['deployment']['last_deployed_sha']);
+    }
+
     public function test_delete_unknown_returns_404(): void
     {
         $repo = Mockery::mock(DeploymentRepositoryInterface::class);

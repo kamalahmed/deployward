@@ -357,6 +357,185 @@ final class DeployerTest extends TestCase
         $this->assertFalse($result->isSkipped());
     }
 
+
+    public function test_overlapping_downloads_of_same_commit_have_independent_temp_files(): void
+    {
+        $mocks = $this->baseMocks(array());
+        $mocks['github']->shouldReceive('resolveSha')->andReturn(Result::ok('newsha'));
+        $mocks['log']->shouldReceive('record');
+        $mocks['notifier']->shouldReceive('notify');
+        $mocks['extractor']->shouldReceive('extract')->andReturn(Result::fail('Fixture stops after download'));
+        $paths = array();
+        $outerSurvived = false;
+        $deployer = $this->deployer($mocks);
+        $mocks['github']->shouldReceive('downloadZipball')->andReturnUsing(function ($repo, $sha, $token, $zip) use (&$paths, &$outerSurvived, $deployer) {
+            $paths[] = $zip;
+            file_put_contents($zip, 'download in progress');
+            if (count($paths) === 1) {
+                $deployer->deploy($this->deployment(), 'manual');
+                $outerSurvived = is_file($zip) && file_get_contents($zip) === 'download in progress';
+            }
+            return Result::ok($zip);
+        });
+        $deployer->deploy($this->deployment(), 'manual');
+        $this->assertTrue($outerSurvived, 'The second deploy must not remove the first download');
+        $this->assertNotSame($paths[0], $paths[1]);
+        foreach ($paths as $path) { $this->assertFileDoesNotExist($path); }
+    }
+
+    public function test_failed_download_removes_partial_temp_file(): void
+    {
+        $mocks = $this->baseMocks(array());
+        $mocks['github']->shouldReceive('resolveSha')->andReturn(Result::ok('newsha'));
+        $mocks['log']->shouldReceive('record');
+        $mocks['notifier']->shouldReceive('notify');
+        $path = '';
+        $mocks['github']->shouldReceive('downloadZipball')->andReturnUsing(function ($repo, $sha, $token, $zip) use (&$path) {
+            $path = $zip;
+            file_put_contents($zip, 'partial');
+            return Result::fail('Download interrupted');
+        });
+        $result = $this->deployer($mocks)->deploy($this->deployment(), 'manual');
+        $this->assertFalse($result->isOk());
+        $this->assertFileDoesNotExist($path);
+    }
+
+    public function test_extraction_exception_removes_temp_file(): void
+    {
+        $mocks = $this->baseMocks(array());
+        $mocks['github']->shouldReceive('resolveSha')->andReturn(Result::ok('newsha'));
+        $mocks['extractor']->shouldReceive('extract')->andThrow(new \RuntimeException('Extraction interrupted'));
+        $path = '';
+        $mocks['github']->shouldReceive('downloadZipball')->andReturnUsing(function ($repo, $sha, $token, $zip) use (&$path) {
+            $path = $zip;
+            file_put_contents($zip, 'downloaded');
+            return Result::ok($zip);
+        });
+        try {
+            $this->deployer($mocks)->deploy($this->deployment(), 'manual');
+            $this->fail('Expected extraction exception');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Extraction interrupted', $e->getMessage());
+        }
+        $this->assertFileDoesNotExist($path);
+    }
+
+    private function archiveDeployment(string $sourcePath, ?callable $alter = null, bool $throwOnSwap = false, string $type = 'plugin'): Result
+    {
+        $work = $this->tempPluginRoot . '/work';
+        $archive = $work . '/dw-extract-fixture/repo';
+        mkdir($archive . '/packages/plugin', 0755, true);
+        mkdir($archive . '/theme', 0755, true);
+        file_put_contents($archive . '/packages/plugin/main.php', "<?php\n/* Plugin Name: Fixture */");
+        file_put_contents($archive . '/theme/style.css', '/* Theme Name: Fixture */');
+        file_put_contents($archive . '/README.md', 'Repository only');
+        if ($alter !== null) { $alter($archive); }
+        \Brain\Monkey\Functions\when('wp_mkdir_p')->justReturn(true);
+        \Brain\Monkey\Functions\when('WP_Filesystem')->justReturn(true);
+        \Brain\Monkey\Functions\when('wp_generate_password')->justReturn('fixture');
+        \Brain\Monkey\Functions\when('unzip_file')->justReturn(true);
+        \Brain\Monkey\Functions\when('is_wp_error')->justReturn(false);
+        $mocks = $this->baseMocks(array(
+            'extractor' => new \Deployward\Deploy\Extractor($work),
+            'validator' => new \Deployward\Deploy\PayloadValidator(),
+            'mover' => new \Deployward\Deploy\DirectoryMover(),
+        ));
+        $mocks['github']->shouldReceive('resolveSha')->andReturn(Result::ok('newsha'));
+        $mocks['github']->shouldReceive('downloadZipball')->andReturn(Result::ok('archive.zip'));
+        if ($throwOnSwap) {
+            $mocks['backups']->shouldReceive('backup')->andThrow(new \RuntimeException('swap interrupted'));
+        } else {
+            $mocks['backups']->shouldReceive('backup')->andReturn(Result::skip('New install'));
+        }
+        $mocks['backups']->shouldReceive('prune');
+        $mocks['health']->shouldReceive('check')->andReturn(Result::ok(200));
+        $mocks['maintenance']->shouldReceive('enable');
+        $mocks['maintenance']->shouldReceive('disable');
+        $mocks['log']->shouldReceive('record');
+        $mocks['notifier']->shouldReceive('notify');
+        $mocks['repository']->shouldReceive('save');
+        $data = $this->deployment()->toArray();
+        $data['source_path'] = $sourcePath;
+        $data['target_type'] = $type;
+        return $this->deployer($mocks, array($type => $this->tempPluginRoot))->deploy(Deployment::fromArray($data), 'webhook');
+    }
+
+    public function test_deploys_only_selected_nested_payload_and_cleans_archive(): void
+    {
+        $result = $this->archiveDeployment('packages/plugin');
+        $this->assertTrue($result->isOk(), $result->message());
+        $this->assertFileExists($this->tempPluginRoot . '/nara-core/main.php');
+        $this->assertFileDoesNotExist($this->tempPluginRoot . '/nara-core/README.md');
+        $this->assertDirectoryDoesNotExist($this->tempPluginRoot . '/work/dw-extract-fixture');
+    }
+
+    public function test_deploys_theme_subdirectory_with_theme_validation(): void
+    {
+        $result = $this->archiveDeployment('theme', null, false, 'theme');
+        $this->assertTrue($result->isOk(), $result->message());
+        $this->assertFileExists($this->tempPluginRoot . '/nara-core/style.css');
+        $this->assertFileDoesNotExist($this->tempPluginRoot . '/nara-core/README.md');
+        $this->assertDirectoryDoesNotExist($this->tempPluginRoot . '/work/dw-extract-fixture');
+    }
+
+    public function test_empty_source_path_preserves_repository_root_deployment(): void
+    {
+        $result = $this->archiveDeployment('', function ($archive) {
+            file_put_contents($archive . '/main.php', "<?php\n/* Plugin Name: Root Fixture */");
+        });
+        $this->assertTrue($result->isOk(), $result->message());
+        $this->assertFileExists($this->tempPluginRoot . '/nara-core/main.php');
+        $this->assertFileExists($this->tempPluginRoot . '/nara-core/README.md');
+        $this->assertDirectoryDoesNotExist($this->tempPluginRoot . '/work/dw-extract-fixture');
+    }
+
+    public function test_missing_subdirectory_fails_and_cleans_archive(): void
+    {
+        $result = $this->archiveDeployment('missing');
+        $this->assertFalse($result->isOk());
+        $this->assertStringContainsString('source_path', $result->message());
+        $this->assertDirectoryDoesNotExist($this->tempPluginRoot . '/nara-core');
+        $this->assertDirectoryDoesNotExist($this->tempPluginRoot . '/work/dw-extract-fixture');
+    }
+
+    public function test_invalid_payload_cleans_archive(): void
+    {
+        $result = $this->archiveDeployment('theme');
+        $this->assertFalse($result->isOk());
+        $this->assertDirectoryDoesNotExist($this->tempPluginRoot . '/work/dw-extract-fixture');
+    }
+
+    public function test_subdirectory_symlink_cannot_escape_archive(): void
+    {
+        $result = $this->archiveDeployment('outside', function ($archive) {
+            symlink($this->tempPluginRoot, $archive . '/outside');
+        });
+        $this->assertFalse($result->isOk());
+        $this->assertStringContainsString('source_path', $result->message());
+        $this->assertDirectoryDoesNotExist($this->tempPluginRoot . '/work/dw-extract-fixture');
+    }
+
+    public function test_payload_symlinks_are_rejected_before_move(): void
+    {
+        $result = $this->archiveDeployment('packages/plugin', function ($archive) {
+            symlink($archive . '/README.md', $archive . '/packages/plugin/link');
+        });
+        $this->assertFalse($result->isOk());
+        $this->assertDirectoryDoesNotExist($this->tempPluginRoot . '/nara-core');
+        $this->assertDirectoryDoesNotExist($this->tempPluginRoot . '/work/dw-extract-fixture');
+    }
+
+    public function test_exception_during_swap_still_cleans_archive(): void
+    {
+        try {
+            $this->archiveDeployment('packages/plugin', null, true);
+            $this->fail('Expected the swap exception');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('swap interrupted', $e->getMessage());
+        }
+        $this->assertDirectoryDoesNotExist($this->tempPluginRoot . '/work/dw-extract-fixture');
+    }
+
     private function baseMocks(array $overrides): array
     {
         $defaults = array(

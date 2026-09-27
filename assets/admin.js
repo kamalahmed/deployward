@@ -345,7 +345,7 @@
 
     const meta = el('p');
     meta.className = 'dw-deployment__meta';
-    meta.textContent = d.repo + '@' + d.branch + ' -> ' + d.target_type + '/' + d.target_slug;
+    meta.textContent = d.repo + '@' + d.branch + (d.source_path ? ' [' + d.source_path + ']' : '') + ' -> ' + d.target_type + '/' + d.target_slug;
     card.appendChild(meta);
 
     const footer = el('div');
@@ -835,6 +835,18 @@
     slugField.wrapper.appendChild(slugHelp);
     form.appendChild(slugField.wrapper);
 
+    /* Repository source directory */
+    const sourceField = buildField('source_path', 'Source Path', false);
+    const sourceInput = sourceField.input;
+    sourceInput.className = 'dw-input';
+    sourceInput.placeholder = 'Optional, e.g. theme or packages/plugin';
+    sourceInput.value = isEdit ? (d.source_path || '') : '';
+    const sourceHelp = el('p');
+    sourceHelp.className = 'dw-help';
+    sourceHelp.textContent = 'Directory inside the repository containing the plugin or theme. Leave blank to deploy the repository root.';
+    sourceField.wrapper.appendChild(sourceHelp);
+    form.appendChild(sourceField.wrapper);
+
     /* Automatic Deployment Method */
     const triggersField = el('div');
     triggersField.className = 'dw-field';
@@ -916,7 +928,7 @@
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      handleFormSubmit(app, form, repoInput, typeSelect, slugInput, branchSelect, branchFallback, tokenInput, isEdit ? d : null, submitBtn, errorArea);
+      handleFormSubmit(app, form, repoInput, typeSelect, slugInput, sourceInput, branchSelect, branchFallback, tokenInput, isEdit ? d : null, submitBtn, errorArea);
     });
 
     wrap.appendChild(form);
@@ -1041,7 +1053,7 @@
     branchFallback.style.display = 'none';
   }
 
-  function handleFormSubmit(app, form, repoInput, typeSelect, slugInput, branchSelect, branchFallback, tokenInput, editing, submitBtn, errorArea) {
+  function handleFormSubmit(app, form, repoInput, typeSelect, slugInput, sourceInput, branchSelect, branchFallback, tokenInput, editing, submitBtn, errorArea) {
     clearEl(errorArea);
 
     const repo   = repoInput.value.trim();
@@ -1069,6 +1081,7 @@
       visibility: vis,
       target_type: type,
       target_slug: slug,
+      source_path: sourceInput.value.trim(),
       poll_interval: pollInterval,
     };
     body.webhook_deploy = document.getElementById('dw-trigger-webhook').checked;

@@ -132,6 +132,20 @@ final class DeployCommandTest extends TestCase
         $this->assertSame(5, $captured->pollInterval());
     }
 
+
+    public function test_source_path_option_is_saved(): void
+    {
+        $captured = null;
+        $repository = Mockery::mock(DeploymentRepositoryInterface::class);
+        $repository->shouldReceive('save')->once()->with(Mockery::on(function ($d) use (&$captured) {
+            $captured = $d->toArray();
+            return true;
+        }));
+        $command = new DeployCommand($repository, Mockery::mock(DeployerInterface::class), Mockery::mock(DeployLogInterface::class));
+        $command->add(array(), array('repo' => 'owner/repo', 'source-path' => 'theme'));
+        $this->assertSame('theme', $captured['source_path'] ?? null);
+    }
+
     public function test_deploy_invokes_deployer_for_known_id(): void
     {
         $deployment = Deployment::fromArray(array(

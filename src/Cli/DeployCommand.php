@@ -37,6 +37,9 @@ final class DeployCommand
      * [--slug=<slug>]
      * : Optional. Target plugin/theme slug; defaults to the repository name.
      *
+     * [--source-path=<path>]
+     * : Repository subdirectory to deploy, for example theme or packages/plugin. Default: repository root.
+     *
      * [--id=<id>]
      * : Optional stable id. Generated when omitted.
      *
@@ -72,6 +75,7 @@ final class DeployCommand
                 'visibility' => isset($assoc['visibility']) ? $assoc['visibility'] : 'public',
                 'target_type' => isset($assoc['type']) ? $assoc['type'] : 'plugin',
                 'target_slug' => isset($assoc['slug']) ? $assoc['slug'] : '',
+                'source_path' => isset($assoc['source-path']) ? $assoc['source-path'] : '',
                 'token' => isset($assoc['token']) ? $assoc['token'] : '',
                 'webhook_secret' => wp_generate_password(32, false),
                 'webhook_deploy' => isset($assoc['webhook-deploy']),

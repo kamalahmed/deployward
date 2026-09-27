@@ -8,6 +8,7 @@ Built for hosts where git deployment is painful or unavailable (WP Engine and si
 - **Choose your deploy triggers per deployment:** manual only, webhook push, scheduled polling, or both, plus a manual button/CLI command that always works
 - **Safety first:** validation, maintenance mode, versioned backups, post-deploy health check, automatic rollback
 - **Deploys plugins, themes, and mu-plugins**, each into a folder you choose
+- **Repository subdirectories:** deploy a theme or plugin from a shared repository using Source Path
 
 ## Screenshots
 
@@ -66,6 +67,29 @@ wp plugin activate deployward
 7. Click **Save deployment**, then click **Deploy now** on the Deployments tab.
 
 That is the whole flow. The first deploy creates `wp-content/plugins/<slug>` (or the theme folder) from the branch head.
+
+## Repositories containing multiple projects
+
+Set **Source Path** to the repository directory containing the deployable plugin or
+theme, for example `theme`, `plugin`, or `packages/my-plugin`. Leave it blank for
+existing repositories whose plugin or theme is at the root. **Target Slug** still
+controls the installed WordPress folder name.
+
+Create a separate deployment for each component. For example:
+
+```bash
+wp deployward add --id=notebook-theme --repo=kamalahmed/kamal-notebook --type=theme --slug=kamal-notebook --source-path=theme --webhook-deploy
+wp deployward add --id=notebook-plugin --repo=kamalahmed/kamal-notebook --type=plugin --slug=kamal-notebook-core --source-path=plugin --webhook-deploy
+```
+
+Configure each deployment's webhook URL and secret in GitHub. No GitHub Actions
+workflow is needed. Each deployment validates, backs up, deploys, and health-checks
+its component independently; a push does not perform an atomic multi-component update.
+
+Source paths must be relative directories with no leading/trailing slash, `.` or
+`..` segments, backslashes, or drive prefixes. Symbolic links in the selected path
+or payload are rejected. A missing directory or invalid payload fails before the
+installed component is changed. The REST deployment field is `source_path`.
 
 ## Private repositories
 
