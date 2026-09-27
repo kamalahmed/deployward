@@ -54,6 +54,7 @@ final class Plugin
         self::ensureScheduled();
         add_action(DeployScheduler::HOOK, array($scheduler, 'run'), 10, 3);
         add_action(CronPoller::HOOK, array($poller, 'poll'));
+        add_action(CronPoller::HOOK, array($scheduler, 'drain'), 20);
 
         $routes = new RestRoutes(
             new RestController(

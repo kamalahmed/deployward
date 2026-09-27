@@ -50,7 +50,7 @@ final class CronPollerTest extends TestCase
         $github = Mockery::mock(GitHubClientInterface::class);
         $github->shouldReceive('resolveSha')->with('o/r', 'main', null)->andReturn(Result::ok('newsha'));
         $scheduler = Mockery::mock(DeploySchedulerInterface::class);
-        $scheduler->shouldReceive('schedule')->once()->with('dw_abc', 'cron', false);
+        $scheduler->shouldReceive('schedule')->once()->with('dw_abc', 'cron', false)->andReturn(\Deployward\Support\Result::ok());
 
         (new CronPoller($repo, $github, $scheduler))->poll();
     }

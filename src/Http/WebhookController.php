@@ -49,7 +49,10 @@ final class WebhookController
             return ApiResponse::ok(array('message' => 'webhook deploys are disabled for this deployment'));
         }
         $sha = is_array($payload) && isset($payload['after']) ? (string) $payload['after'] : '';
-        $this->scheduler->schedule($deployment->id(), 'webhook', false);
+        $queued = $this->scheduler->schedule($deployment->id(), 'webhook', false);
+        if (! $queued->isOk()) {
+            return ApiResponse::error($queued->message(), 503);
+        }
 
         return ApiResponse::ok(array('message' => 'queued', 'sha' => $sha), 202);
     }

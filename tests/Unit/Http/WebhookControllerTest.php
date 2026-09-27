@@ -97,13 +97,27 @@ final class WebhookControllerTest extends TestCase
         $verifier = Mockery::mock(SignatureVerifierInterface::class);
         $verifier->shouldReceive('verify')->andReturn(true);
         $scheduler = Mockery::mock(DeploySchedulerInterface::class);
-        $scheduler->shouldReceive('schedule')->once()->with('dw_abc', 'webhook', false);
+        $scheduler->shouldReceive('schedule')->once()->with('dw_abc', 'webhook', false)->andReturn(\Deployward\Support\Result::ok());
 
         $res = $this->controller($repo, $verifier, $scheduler)
             ->handle('dw_abc', '{"ref":"refs/heads/main","after":"abc1234"}', 'sha256=ok', 'push');
 
         $this->assertSame(202, $res->status());
         $this->assertSame('abc1234', $res->data()['sha']);
+    }
+
+    public function test_queue_storage_failure_returns_503(): void
+    {
+        $repo = Mockery::mock(DeploymentRepositoryInterface::class);
+        $repo->shouldReceive('find')->andReturn($this->deployment('whsec', true));
+        $verifier = Mockery::mock(SignatureVerifierInterface::class);
+        $verifier->shouldReceive('verify')->andReturn(true);
+        $scheduler = Mockery::mock(DeploySchedulerInterface::class);
+        $scheduler->shouldReceive('schedule')->andReturn(\Deployward\Support\Result::fail('Queue unavailable'));
+        $res = $this->controller($repo, $verifier, $scheduler)
+            ->handle('dw_abc', '{"ref":"refs/heads/main"}', 'sha256=ok', 'push');
+        $this->assertSame(503, $res->status());
+        $this->assertSame('Queue unavailable', $res->data()['error']);
     }
 
     public function test_push_to_watched_branch_with_webhook_deploy_off_does_not_queue(): void

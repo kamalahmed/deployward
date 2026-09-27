@@ -134,6 +134,15 @@ The Deployments tab shows a precise badge on each card: **Manual**, **Webhook**,
 
 When you tick Webhook on the Add/Edit form, a collapsed "Webhook setup" section shows these settings right on the form (for a new deployment they are generated on save, and the settings open automatically afterwards).
 
+Accepted webhook jobs are stored as independent durable records before HTTP 202 is
+returned. A database lock lets one worker process the queue at a time. If a cron
+wakeup is lost, the existing five-minute maintenance event drains pending work;
+this recovery also runs when scheduled repository polling is disabled. Like all
+WP-Cron tasks, it requires site traffic or an external cron runner. Interrupted
+jobs remain queued, while completed attempts (including logged failures and
+already-deployed skips) are removed. A failed attempt can be retried by redelivering
+the webhook or making a new push. A queue storage failure returns HTTP 503.
+
 Every webhook call is verified with an HMAC signature (`X-Hub-Signature-256`); requests without a valid signature are rejected.
 
 ### Scheduled check trigger (polling, no webhook needed)

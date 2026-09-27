@@ -6,6 +6,7 @@ use Deployward\Config\DeploymentRepository;
 use Deployward\Config\DeploymentRepositoryInterface;
 use Deployward\Deploy\BackupManager;
 use Deployward\Deploy\Deployer;
+use Deployward\Deploy\DeploymentQueue;
 use Deployward\Deploy\DeployerInterface;
 use Deployward\Deploy\DirectoryMover;
 use Deployward\Deploy\Extractor;
@@ -27,6 +28,11 @@ final class Container
     public function __construct($wpdb)
     {
         $this->wpdb = $wpdb;
+    }
+
+    public function queue(): DeploymentQueue
+    {
+        return new DeploymentQueue($this->wpdb);
     }
 
     public function repository(): DeploymentRepositoryInterface

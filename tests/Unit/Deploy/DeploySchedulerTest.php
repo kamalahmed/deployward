@@ -17,6 +17,7 @@ use PHPUnit\Framework\TestCase;
 final class DeploySchedulerTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
+    private $queued = array();
 
     protected function setUp(): void
     {
@@ -41,6 +42,11 @@ final class DeploySchedulerTest extends TestCase
             define('DEPLOYWARD_SLUG', 'deployward');
         }
         Functions\when('wp_upload_dir')->justReturn(array('basedir' => sys_get_temp_dir() . '/uploads'));
+        Functions\when('add_option')->alias(function ($key, $value) {
+            $this->queued[] = array('option_name' => $key, 'option_value' => $value);
+            return true;
+        });
+        Functions\when('delete_option')->justReturn(true);
         Functions\when('get_temp_dir')->justReturn(sys_get_temp_dir() . '/');
         Functions\when('get_theme_root')->justReturn(sys_get_temp_dir() . '/themes');
         Functions\when('home_url')->justReturn('https://nara.local/');
@@ -56,6 +62,18 @@ final class DeploySchedulerTest extends TestCase
         parent::tearDown();
     }
 
+    private function database()
+    {
+        $wpdb = Mockery::mock();
+        $wpdb->prefix = 'wp_';
+        $wpdb->options = 'wp_options';
+        $wpdb->shouldReceive('prepare')->andReturnUsing(function ($sql) { return $sql; });
+        $wpdb->shouldReceive('esc_like')->andReturn('deployward_job_');
+        $wpdb->shouldReceive('get_var')->andReturn('1');
+        $wpdb->shouldReceive('get_results')->andReturnUsing(function () { return $this->queued; });
+        return $wpdb;
+    }
+
     private function deployment(): Deployment
     {
         return Deployment::fromArray(array(
@@ -66,13 +84,11 @@ final class DeploySchedulerTest extends TestCase
 
     public function test_schedule_enqueues_a_single_event_and_spawns_cron(): void
     {
-        $wpdb = Mockery::mock();
-        $wpdb->prefix = 'wp_';
+        $wpdb = $this->database();
         $container = new Container($wpdb);
         Functions\expect('wp_schedule_single_event')->once()->with(
             Mockery::type('int'),
-            DeployScheduler::HOOK,
-            array('dw_abc', 'webhook', false)
+            DeployScheduler::HOOK
         );
         Functions\expect('time')->andReturn(1000000000);
         Functions\expect('spawn_cron')->once();
@@ -88,8 +104,7 @@ final class DeploySchedulerTest extends TestCase
         $deployer->shouldReceive('deploy')->once()
             ->with(Mockery::type(Deployment::class), 'webhook', false)
             ->andReturn(Result::ok('sha'));
-        $wpdb = Mockery::mock();
-        $wpdb->prefix = 'wp_';
+        $wpdb = $this->database();
         $mock = Mockery::mock(new Container($wpdb))
             ->makePartial();
         $mock->shouldReceive('repository')->andReturn($repo);
@@ -104,8 +119,7 @@ final class DeploySchedulerTest extends TestCase
         $repo->shouldReceive('find')->with('gone')->andReturn(null);
         $deployer = Mockery::mock(DeployerInterface::class);
         $deployer->shouldNotReceive('deploy');
-        $wpdb = Mockery::mock();
-        $wpdb->prefix = 'wp_';
+        $wpdb = $this->database();
         $mock = Mockery::mock(new Container($wpdb))
             ->makePartial();
         $mock->shouldReceive('repository')->andReturn($repo);
